@@ -161,17 +161,23 @@ h1 { margin: 0; font-family: var(--tui-font-heading); font-size: clamp(34px, 5vw
 .stat > div { min-width: 0; display: grid; gap: 2px; align-content: center; }
 .stat span { display: block; color: var(--tui-text-03); font-size: 11px; line-height: 1; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .stat strong { display: block; margin: 0; font-size: 22px; line-height: 1; letter-spacing: -.04em; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(116px, 1fr)); gap: 10px; align-items: start; }
-.virtual-spacer { grid-column: 1 / -1; pointer-events: none; }
-.icon-card { appearance: none; min-width: 0; padding: 12px 8px 10px; min-height: 120px; border-radius: 20px; color: var(--tui-text-01); text-align: center; transition: transform .16s, border-color .16s, box-shadow .16s, background .16s; }
+.grid { position: relative; min-height: 0; }
+.virtual-placeholders,
+.virtual-content { position: absolute; inset: 0 0 auto; display: grid; gap: 10px; align-items: start; }
+.virtual-content { will-change: transform; }
+.virtual-placeholder { height: 132px; border: 1px solid var(--tui-base-03); border-radius: 22px; background: linear-gradient(135deg, color-mix(in srgb, var(--tui-base-01) 78%, transparent), color-mix(in srgb, var(--tui-base-02) 84%, transparent)); box-shadow: 0 14px 40px color-mix(in srgb, var(--tui-base-09) 5%, transparent); }
+.icon-card { appearance: none; min-width: 0; display: grid; grid-template-rows: 66px auto auto; align-content: center; overflow: hidden; padding: 14px 9px 16px; height: 132px; border-radius: 22px; color: var(--tui-text-01); text-align: center; animation: icon-card-in .34s cubic-bezier(.16, 1, .3, 1) var(--card-delay, 0ms) both; transition: transform .16s, border-color .16s, box-shadow .16s, background .16s; }
+.icon-card--ready { animation: none; }
 .icon-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--tui-primary) 55%, var(--tui-base-03)); box-shadow: var(--tui-shadow-hover); background: var(--tui-base-01); }
 .icon-card:focus-visible { outline: 3px solid color-mix(in srgb, var(--tui-primary) 40%, transparent); outline-offset: 2px; }
-.icon-preview { display: grid; place-items: center; height: 62px; margin-bottom: 10px; color: currentColor; }
+.icon-preview { display: grid; place-items: center; min-height: 62px; color: currentColor; }
 .icon-preview svg { width: 42px; height: 42px; }
 .icon-preview svg [stroke]:not([stroke="none"]) { stroke: currentColor; }
 .icon-preview svg [fill]:not([fill="none"]) { fill: currentColor; }
-.icon-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; letter-spacing: -.01em; }
-.icon-style { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: var(--tui-text-03); font-size: 11px; }
+.icon-name { display: block; align-self: end; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; line-height: 1.2; font-weight: 700; letter-spacing: -.01em; }
+.icon-style { display: inline-flex; align-items: center; justify-content: center; gap: 4px; margin-top: 6px; color: var(--tui-text-03); font-size: 11px; line-height: 1.2; }
+.icon-style svg { width: 12px; height: 12px; flex: 0 0 auto; }
+@keyframes icon-card-in { 0% { opacity: 0; transform: translateY(8px) scale(.985); } 45% { opacity: .45; } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .empty { display: none; text-align: center; padding: 52px 24px; color: var(--tui-text-02); }
 .empty.show { display: block; }
 dialog { width: min(720px, calc(100% - 28px)); padding: 0; border: 1px solid var(--tui-base-03); border-radius: 24px; color: var(--tui-text-01); background: var(--tui-base-01); box-shadow: 0 34px 100px color-mix(in srgb, var(--tui-base-09) 22%, transparent); }
@@ -288,4 +294,4 @@ dialog::backdrop { background: color-mix(in srgb, var(--tui-base-09) 45%, transp
 .kbd { border: 1px solid var(--tui-base-04); border-bottom-width: 2px; border-radius: 6px; padding: 1px 5px; color: var(--tui-text-02); background: var(--tui-base-01); font-size: 12px; }
 .footer { color: var(--tui-text-03); margin-top: 28px; text-align: center; font-size: 13px; }
 @media (max-width: 980px) { .hero { grid-template-columns: 1fr; } .header-actions { justify-content: flex-start; } .toolbar-grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .button-preview-grid, .size-preview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .page { width: min(100% - 20px, 1440px); padding-top: 20px; } .stats { grid-template-columns: 1fr; } .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .button-preview-grid, .size-preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .preview-heading { display: block; } .preview-heading p { margin-top: 4px; } .seg { padding: 8px 9px; } }
+@media (max-width: 560px) { .page { width: min(100% - 20px, 1440px); padding-top: 20px; } .stats { grid-template-columns: 1fr; } .button-preview-grid, .size-preview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .preview-heading { display: block; } .preview-heading p { margin-top: 4px; } .seg { padding: 8px 9px; } }
