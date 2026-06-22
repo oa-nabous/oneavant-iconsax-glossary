@@ -31,6 +31,21 @@ async function loadIconData() {
     const variants = iconByName.get(name)?.variants;
     return variants?.[style] || variants?.outline || variants?.bold || variants?.bulk || '';
   };
+  function hydrateIconsaxImages(root = document) {
+    root.querySelectorAll('img[src^="@iconsax/"]').forEach((img) => {
+      const match = img.getAttribute('src')?.match(/^@iconsax\/([^/]+)\/(.+)$/);
+      if (!match) return;
+      const svg = iconSvg(match[2], match[1]);
+      if (!svg) return;
+      const template = document.createElement('template');
+      template.innerHTML = svg.trim();
+      const svgElement = template.content.firstElementChild;
+      if (!svgElement) return;
+      svgElement.setAttribute('aria-hidden', img.getAttribute('aria-hidden') || 'true');
+      svgElement.setAttribute('focusable', 'false');
+      img.replaceWith(svgElement);
+    });
+  }
   const allIconVariants = icons.flatMap((item) => styles.filter((style) => item.variants[style]).map((style) => ({ ...item, style, variantCount: Object.keys(item.variants).length })));
   const state = { query: '', style: 'all', sort: 'az', selected: null, selectedStyle: 'outline', filteredIcons: [], virtualRaf: 0, renderedWindowKey: '', renderedPlaceholderKey: '', visibleIconKeys: new Set(), urlTimer: 0, isApplyingUrl: false };
   const els = {
@@ -46,6 +61,7 @@ async function loadIconData() {
     if (!persist) return;
     try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (_error) {}
   }
+  hydrateIconsaxImages();
   applyTheme(readStoredTheme() || document.documentElement.dataset.theme || getSystemTheme());
 
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -70,8 +86,24 @@ async function loadIconData() {
     catch (_error) { const textarea = document.createElement('textarea'); textarea.value = value; textarea.style.position = 'fixed'; textarea.style.opacity = '0'; document.body.appendChild(textarea); textarea.select(); document.execCommand('copy'); textarea.remove(); }
     toast(`${label} copied`);
   }
+  function usesPreviewWrapper() {
+    return window.location.hostname === 'htmlpreview.github.io' || /^\?(https?:\/\/|https?%3A)/i.test(window.location.search);
+  }
+  function previewWrapperBaseUrl() {
+    const rawTarget = window.location.href.split('#')[0].slice(`${window.location.origin}${window.location.pathname}?`.length);
+    const cleanTarget = rawTarget
+      .replace(/([&?])(type|style|q|sort)=[^&]*/g, '')
+      .replace(/[?&]$/, '')
+      .replace(/=$/, '');
+    const target = /^https?%3A/i.test(cleanTarget) ? decodeURIComponent(cleanTarget) : cleanTarget;
+    return `${window.location.origin}${window.location.pathname}?${target}`;
+  }
+  function stateParamsFromHash() {
+    return new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  }
   function readUrlState() {
-    const params = new URLSearchParams(window.location.search);
+    const hashParams = stateParamsFromHash();
+    const params = usesPreviewWrapper() && hashParams.size ? hashParams : new URLSearchParams(window.location.search);
     const urlStyle = params.get('type') || params.get('style') || 'all';
     const urlSort = params.get('sort') || 'az';
     return {
@@ -95,13 +127,18 @@ async function loadIconData() {
   function updateUrl(replace = false) {
     if (state.isApplyingUrl) return;
     try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('type', state.style);
-      if (state.query.trim()) url.searchParams.set('q', state.query.trim());
-      else url.searchParams.delete('q');
-      if (state.sort !== 'az') url.searchParams.set('sort', state.sort);
-      else url.searchParams.delete('sort');
-      const nextUrl = url.href;
+      const params = new URLSearchParams();
+      params.set('type', state.style);
+      if (state.query.trim()) params.set('q', state.query.trim());
+      if (state.sort !== 'az') params.set('sort', state.sort);
+      let nextUrl;
+      if (usesPreviewWrapper()) {
+        nextUrl = `${previewWrapperBaseUrl()}#${params.toString()}`;
+      } else {
+        const url = new URL(window.location.href);
+        url.search = params.toString();
+        nextUrl = url.href;
+      }
       if (nextUrl === window.location.href) return;
       history[replace ? 'replaceState' : 'pushState']({ query: state.query, style: state.style, sort: state.sort }, '', nextUrl);
     } catch (error) {
