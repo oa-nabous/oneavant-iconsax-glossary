@@ -8,7 +8,159 @@
 </head>
 <body>
   <div id="loadingOverlay" class="loading-overlay" role="status" aria-live="polite" aria-label="Loading Iconsax glossary">
-    <img class="loading-logo" src="../src/lib/assets/oneavant/logo-splash-loop.svg" alt="" />
+    <svg class="loading-logo" width="215" height="215" viewBox="0 0 215 215" fill="none" xmlns="http://www.w3.org/2000/svg" id="splash-mark">
+        <path
+            d="M116.893 72.2333L115.223 73.2006V73.2108C112.769 74.6363 109.735 74.6465 107.271 73.2311L98.1067 67.9668C95.6426 66.5515 94.1152 63.9244 94.1051 61.0835V43.9465C94.0949 41.0955 95.612 38.4684 98.066 37.0429L99.7359 36.0755C102.19 34.65 105.224 34.6398 107.688 36.0552L116.853 41.3195C119.317 42.7348 120.844 45.3619 120.854 48.2028V65.3296C120.864 68.1807 119.347 70.8077 116.893 72.2333Z"
+            fill="currentColor" class="top" />
+        <path
+            d="M137.207 88.7186L139.071 89.2175C141.82 89.9506 144.742 89.1564 146.748 87.1403L158.855 75.0232C160.861 73.0071 161.635 70.0746 160.891 67.3355L158.132 57.1328C157.389 54.3937 155.24 52.2554 152.491 51.5223L150.628 51.0233C147.878 50.2902 144.956 51.0844 142.95 53.1005L130.843 65.2176C128.837 67.2337 128.063 70.1662 128.807 72.9053L131.566 83.1081C132.309 85.8471 134.458 87.9854 137.207 88.7186Z"
+            fill="currentColor" class="top-right" />
+        <path
+            d="M142.757 116.893L141.789 115.223C140.364 112.769 140.354 109.735 141.769 107.271L147.033 98.1067C148.449 95.6426 151.076 94.1152 153.916 94.1051H171.053C173.905 94.0949 176.532 95.612 177.957 98.066L178.924 99.7359C180.35 102.19 180.36 105.224 178.945 107.688L173.681 116.853C172.265 119.317 169.638 120.844 166.797 120.854H149.66C146.809 120.864 144.182 119.347 142.757 116.893Z"
+            fill="currentColor" class="right" />
+        <path
+            d="M125.772 139.071L126.271 137.207C127.004 134.458 129.143 132.309 131.882 131.566L142.085 128.807C144.824 128.063 147.756 128.837 149.772 130.843L161.889 142.95C163.905 144.956 164.7 147.878 163.967 150.628L163.468 152.491C162.734 155.24 160.596 157.389 157.857 158.132L147.654 160.891C144.915 161.635 141.983 160.861 139.967 158.855L127.85 146.748C125.833 144.742 125.039 141.82 125.772 139.071Z"
+            fill="currentColor" class="bottom-right" />
+        <path
+            d="M116.883 147.033L107.719 141.769C105.255 140.354 102.22 140.364 99.7665 141.789L98.0966 142.757C95.6324 144.192 94.1254 146.819 94.1356 149.66V166.797C94.1356 169.648 95.663 172.265 98.1271 173.681L107.291 178.945C109.755 180.36 112.79 180.35 115.244 178.924L116.914 177.957C119.378 176.521 120.885 173.894 120.875 171.053V153.916C120.875 151.065 119.347 148.449 116.883 147.033Z"
+            fill="currentColor" class="bottom" />
+        <path
+            d="M75.9193 125.772L77.7827 126.271C80.5319 127.004 82.6804 129.143 83.4237 131.882L86.1831 142.085C86.9265 144.824 86.1526 147.756 84.1467 149.772L72.0398 161.889C70.0338 163.905 67.1115 164.7 64.3623 163.967L62.4989 163.468C59.7496 162.734 57.6011 160.596 56.8578 157.857L54.0984 147.654C53.3551 144.915 54.1289 141.983 56.1349 139.967L68.2417 127.85C70.2477 125.833 73.17 125.039 75.9193 125.772Z"
+            fill="currentColor" class="bottom-left" />
+        <path
+            d="M72.2333 98.0966L73.2006 99.7665H73.2108C74.6363 102.22 74.6465 105.255 73.2311 107.719L67.9668 116.883C66.5515 119.347 63.9244 120.875 61.0835 120.885H43.9465C41.0955 120.895 38.4684 119.378 37.0429 116.924L36.0755 115.254C34.65 112.8 34.6398 109.766 36.0552 107.301L41.3195 98.1373C42.7348 95.6731 45.3619 94.1458 48.2028 94.1356H65.3296C68.1807 94.1254 70.8077 95.6426 72.2333 98.0966Z"
+            fill="currentColor" class="left" />
+        <path
+            d="M89.2175 75.9193L88.7186 77.7827C87.9854 80.5319 85.8471 82.6804 83.1081 83.4237L72.9053 86.1831C70.1662 86.9265 67.2337 86.1526 65.2176 84.1467L53.1005 72.0398C51.0844 70.0338 50.2902 67.1115 51.0233 64.3623L51.5222 62.4989C52.2554 59.7496 54.3937 57.6011 57.1328 56.8578L67.3355 54.0984C70.0746 53.3551 73.0071 54.1289 75.0232 56.1349L87.1403 68.2417C89.1564 70.2477 89.9506 73.17 89.2175 75.9193Z"
+            fill="currentColor" class="top-left" />
+    
+        <style>
+            #splash-mark {
+                --iteration: infinite;
+                --duration: 1.5s;
+            }
+    
+            #splash-mark path {
+                transform-origin: center center;
+                transition: transform 0.5s ease-in-out;
+                -webkit-transform: translate(0, 0);
+                transform: translate(0, 0);
+                opacity: 0;
+                animation: spiral-out ease-in-out forwards;
+                animation-duration: var(--duration);
+                animation-delay: var(--d, 0s);
+                animation-iteration-count: var(--iteration);
+    
+            }
+    
+            #splash-mark.loaded path {
+                --duration: 0.5s;
+                animation: unspiral var(--duration) var(--d, 0s) ease-out forwards !important;
+            }
+    
+            #splash-mark path.top {
+                --transform: translate(0%, 50%);
+                --out-transform: translate(0%, -50%);
+                --d: calc(var(--duration) / 2 * 0.1);
+            }
+    
+            #splash-mark path.top-right {
+                --transform: translate(-25%, 25%);
+                --out-transform: translate(25%, -25%);
+                --d: calc(var(--duration) / 2 * 0.2);
+            }
+    
+            #splash-mark path.right {
+                --transform: translate(-50%, 0%);
+                --out-transform: translate(50%, 0%);
+                --d: calc(var(--duration) / 2 * 0.3);
+            }
+    
+            #splash-mark path.bottom-right {
+                --transform: translate(-25%, -25%);
+                --out-transform: translate(25%, 25%);
+                --d: calc(var(--duration) / 2 * 0.4);
+            }
+    
+            #splash-mark path.bottom {
+                --transform: translate(-0%, -50%);
+                --out-transform: translate(0%, 50%);
+                --d: calc(var(--duration) / 2 * 0.5);
+            }
+    
+            #splash-mark path.bottom-left {
+                --transform: translate(25%, -25%);
+                --out-transform: translate(-25%, 25%);
+                --d: calc(var(--duration) / 2 * 0.6);
+            }
+    
+            #splash-mark path.left {
+                --transform: translate(50%, 0%);
+                --out-transform: translate(-50%, 0%);
+                --d: calc(var(--duration) / 2 * 0.6);
+            }
+    
+            #splash-mark path.top-left {
+                --transform: translate(25%, 25%);
+                --out-transform: translate(-25%, -25%);
+                --d: calc(var(--duration) / 2 * 0.7);
+            }
+    
+    
+            @keyframes unspiral {
+                0% {
+                    opacity: 0;
+                    -webkit-transform: var(--out-transform);
+                    transform: var(--out-transform);
+                }
+    
+                50% {
+                    opacity: 0;
+                }
+    
+                100%,
+                65% {
+                    -webkit-transform: transform(0, 0);
+                    transform: transform(0, 0);
+                    opacity: 1;
+                }
+            }
+    
+            @keyframes spiral-out {
+    
+                0%,
+                30% {
+                    -webkit-transform: var(--transform);
+                    transform: var(--transform);
+                    opacity: 0;
+                }
+    
+    
+                37% {
+                    opacity: 0
+                }
+    
+                50%,
+                70% {
+                    -webkit-transform: translate(0, 0);
+                    transform: translate(0, 0);
+                    opacity: 1;
+                }
+    
+    
+                80% {
+                    opacity: 0;
+                }
+    
+    
+                100% {
+                    -webkit-transform: var(--out-transform);
+                    transform: var(--out-transform);
+                    opacity: 0;
+                }
+            }
+        </style>
+    </svg>
     <div class="loading-title">Loading Iconsax glossary</div>
     <div class="loading-subtitle">Preparing searchable icon data...</div>
   </div>
