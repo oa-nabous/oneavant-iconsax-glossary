@@ -94,14 +94,19 @@ async function loadIconData() {
   }
   function updateUrl(replace = false) {
     if (state.isApplyingUrl) return;
-    const params = new URLSearchParams();
-    params.set('type', state.style);
-    if (state.query.trim()) params.set('q', state.query.trim());
-    if (state.sort !== 'az') params.set('sort', state.sort);
-    const query = params.toString();
-    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
-    if (nextUrl === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
-    history[replace ? 'replaceState' : 'pushState']({ query: state.query, style: state.style, sort: state.sort }, '', nextUrl);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('type', state.style);
+      if (state.query.trim()) url.searchParams.set('q', state.query.trim());
+      else url.searchParams.delete('q');
+      if (state.sort !== 'az') url.searchParams.set('sort', state.sort);
+      else url.searchParams.delete('sort');
+      const nextUrl = url.href;
+      if (nextUrl === window.location.href) return;
+      history[replace ? 'replaceState' : 'pushState']({ query: state.query, style: state.style, sort: state.sort }, '', nextUrl);
+    } catch (error) {
+      console.warn('Unable to update glossary URL state', error);
+    }
   }
   function scheduleUrlUpdate() {
     clearTimeout(state.urlTimer);
