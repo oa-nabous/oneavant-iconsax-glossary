@@ -276,12 +276,16 @@ dialog::backdrop { background: color-mix(in srgb, var(--tui-base-09) 45%, transp
 .tui-preview-chip[data-status="error"] { background: var(--tui-error-bg); color: var(--tui-error-fill); }
 .tui-preview-chip[data-status="info"] { background: var(--tui-info-bg); color: var(--tui-info-fill); }
 .tui-preview-chip[data-status="disabled"] { background: var(--tui-base-02); color: var(--tui-text-03); }
-.copy-card { display: flex; gap: 10px; align-items: center; min-height: 54px; border: 1px solid var(--tui-base-03); border-radius: 16px; background: var(--tui-base-02); color: var(--tui-text-01); padding: 11px; text-align: left; font-weight: 750; }
-.copy-card:hover { border-color: var(--tui-primary); background: var(--tui-secondary-hover); }
-.copy-card svg { width: 21px; height: 21px; color: var(--tui-primary); flex: 0 0 auto; }
-.copy-card small { display: block; margin-top: 2px; color: var(--tui-text-03); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.code-block { position: relative; margin: 12px 0; }
+.code-block pre { margin: 0; }
+.code-copy { position: absolute !important; top: 10px; right: 10px; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid color-mix(in srgb, var(--tui-base-06) 50%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--tui-base-07) 18%, transparent); color: var(--tui-text-01); backdrop-filter: blur(8px); box-shadow: 0 6px 18px color-mix(in srgb, var(--tui-base-09) 22%, transparent); transition: border-color .16s, background .16s, color .16s, transform .16s; }
+.code-copy:hover { border-color: var(--tui-primary); background: var(--tui-primary); color: var(--tui-primary-text); transform: translateY(-1px); }
+.code-copy:focus-visible { outline: none; border-color: var(--tui-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--tui-primary) 32%, transparent); }
+.code-copy svg { width: 16px; height: 16px; }
+.code-copy svg [stroke]:not([stroke="none"]) { stroke: currentColor; }
+.code-copy svg [fill]:not([fill="none"]) { fill: currentColor; }
 .doc-copy { margin-top: 14px; }
-.doc-copy pre { overflow: auto; margin: 12px 0; padding: 14px; border-radius: 16px; background: var(--tui-base-02); border: 1px solid var(--tui-base-03); color: var(--tui-text-02); font-size: 13px; line-height: 1.45; }
+.doc-copy pre { overflow: auto; padding: 14px 56px 14px 14px; border-radius: 16px; background: var(--tui-base-02); border: 1px solid var(--tui-base-03); color: var(--tui-text-02); font-size: 13px; line-height: 1.45; }
 .doc-list { margin: 0; padding-left: 20px; color: var(--tui-text-02); line-height: 1.55; }
 
 .loading-overlay { position: fixed; inset: 0; z-index: 2147483646; display: grid; place-content: center; justify-items: center; gap: 12px; background: radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--tui-primary) 16%, transparent), transparent 22rem), var(--tui-base-01); color: var(--tui-text-01); transition: opacity .24s ease, visibility .24s ease; }
@@ -292,6 +296,22 @@ dialog::backdrop { background: color-mix(in srgb, var(--tui-base-09) 45%, transp
 
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(18px); opacity: 0; pointer-events: none; background: var(--tui-base-08); color: var(--tui-base-01); border-radius: 999px; padding: 10px 16px; font-size: 13px; font-weight: 700; box-shadow: var(--tui-shadow-hover); transition: opacity .18s, transform .18s; z-index: 2147483647; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.tooltip { position: fixed; inset: auto; margin: 0; padding: 6px 9px; border: 0; width: max-content; max-width: min(280px, calc(100vw - 24px)); background: var(--tui-base-09); color: var(--tui-base-01); font: 700 11px/1 var(--tui-font-text); letter-spacing: .01em; white-space: nowrap; border-radius: 8px; box-shadow: 0 8px 22px color-mix(in srgb, var(--tui-base-09) 28%, transparent); pointer-events: none; z-index: 2147483647; overflow: visible; opacity: 0; transition: opacity .14s ease, transform .14s ease, display .14s allow-discrete, overlay .14s allow-discrete; }
+.tooltip:popover-open,
+.tooltip.is-open { opacity: 1; }
+@starting-style {
+  .tooltip:popover-open { opacity: 0; }
+  .tooltip:popover-open[data-placement="bottom"] { transform: translateY(-4px); }
+  .tooltip:popover-open[data-placement="top"] { transform: translateY(4px); }
+  .tooltip:popover-open[data-placement="left"] { transform: translateX(4px); }
+  .tooltip:popover-open[data-placement="right"] { transform: translateX(-4px); }
+}
+.tooltip::after { content: ''; position: absolute; width: 0; height: 0; border: 5px solid transparent; }
+.tooltip[data-placement="bottom"]::after { bottom: 100%; left: var(--arrow-x, 50%); margin-left: -5px; border-bottom-color: var(--tui-base-09); }
+.tooltip[data-placement="top"]::after { top: 100%; left: var(--arrow-x, 50%); margin-left: -5px; border-top-color: var(--tui-base-09); }
+.tooltip[data-placement="left"]::after { left: 100%; top: var(--arrow-y, 50%); margin-top: -5px; border-left-color: var(--tui-base-09); }
+.tooltip[data-placement="right"]::after { right: 100%; top: var(--arrow-y, 50%); margin-top: -5px; border-right-color: var(--tui-base-09); }
 .kbd { border: 1px solid var(--tui-base-04); border-bottom-width: 2px; border-radius: 6px; padding: 1px 5px; color: var(--tui-text-02); background: var(--tui-base-01); font-size: 12px; }
 .footer { color: var(--tui-text-03); margin-top: 28px; text-align: center; font-size: 13px; }
 @media (max-width: 980px) { .hero { grid-template-columns: 1fr; } .header-actions { justify-content: flex-start; } .toolbar-grid { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2, 1fr); } .button-preview-grid, .size-preview-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

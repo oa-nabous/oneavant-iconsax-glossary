@@ -3,6 +3,129 @@
 // Search aliases live in ./iconsax-glossary.aliases.json.
 const THEME_STORAGE_KEY = 'iconsax-glossary-theme';
 
+// Viewport-aware tooltip controller. Uses the native Popover API so the tooltip renders
+// in the top layer and escapes overflow/transform ancestors. Falls back to a class toggle
+// on browsers without Popover support.
+function setupTooltips() {
+  if (document.querySelector('.tooltip[data-shared]')) return;
+  const tip = document.createElement('div');
+  tip.className = 'tooltip';
+  tip.dataset.shared = '';
+  tip.setAttribute('role', 'tooltip');
+  tip.setAttribute('popover', 'manual');
+  document.body.appendChild(tip);
+  const MARGIN = 8;
+  const popoverSupported = typeof tip.showPopover === 'function';
+  let currentTrigger = null;
+  let showTimer = 0;
+  let hideTimer = 0;
+  let raf = 0;
+  const open = () => {
+    if (popoverSupported) { try { tip.showPopover(); return; } catch (_error) {} }
+    tip.classList.add('is-open');
+  };
+  const close = () => {
+    if (popoverSupported) { try { tip.hidePopover(); return; } catch (_error) {} }
+    tip.classList.remove('is-open');
+  };
+  const isOpen = () => (popoverSupported && tip.matches(':popover-open')) || tip.classList.contains('is-open');
+  function place(trigger) {
+    const tr = trigger.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const tw = tip.offsetWidth;
+    const th = tip.offsetHeight;
+    const preferred = trigger.dataset.tooltipPosition || 'bottom';
+    const baseSide = preferred.startsWith('bottom') ? 'bottom' : preferred.startsWith('top') ? 'top' : preferred === 'left' ? 'left' : preferred === 'right' ? 'right' : 'bottom';
+    // Flip on the main axis only when the preferred side has no room and the opposite does.
+    let side = baseSide;
+    const fitsBottom = tr.bottom + MARGIN + th <= vh - MARGIN;
+    const fitsTop = tr.top - MARGIN - th >= MARGIN;
+    const fitsRight = tr.right + MARGIN + tw <= vw - MARGIN;
+    const fitsLeft = tr.left - MARGIN - tw >= MARGIN;
+    if (side === 'bottom' && !fitsBottom && fitsTop) side = 'top';
+    else if (side === 'top' && !fitsTop && fitsBottom) side = 'bottom';
+    else if (side === 'right' && !fitsRight && fitsLeft) side = 'left';
+    else if (side === 'left' && !fitsLeft && fitsRight) side = 'right';
+    // Compute position based on chosen side + optional alignment, then shift on the cross axis.
+    let x;
+    let y;
+    if (side === 'top' || side === 'bottom') {
+      if (side === baseSide && preferred.endsWith('-end')) x = tr.right - tw;
+      else if (side === baseSide && preferred.endsWith('-start')) x = tr.left;
+      else x = tr.left + tr.width / 2 - tw / 2;
+      y = side === 'top' ? tr.top - th - MARGIN : tr.bottom + MARGIN;
+      x = Math.max(MARGIN, Math.min(x, vw - tw - MARGIN));
+    } else {
+      x = side === 'left' ? tr.left - tw - MARGIN : tr.right + MARGIN;
+      y = tr.top + tr.height / 2 - th / 2;
+      y = Math.max(MARGIN, Math.min(y, vh - th - MARGIN));
+    }
+    const arrowX = Math.max(10, Math.min(tw - 10, tr.left + tr.width / 2 - x));
+    const arrowY = Math.max(10, Math.min(th - 10, tr.top + tr.height / 2 - y));
+    tip.style.left = `${Math.round(x)}px`;
+    tip.style.top = `${Math.round(y)}px`;
+    tip.dataset.placement = side;
+    tip.style.setProperty('--arrow-x', `${Math.round(arrowX)}px`);
+    tip.style.setProperty('--arrow-y', `${Math.round(arrowY)}px`);
+  }
+  function show(trigger) {
+    const label = trigger.dataset.tooltip;
+    if (!label) return;
+    if (currentTrigger === trigger) return;
+    currentTrigger = trigger;
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    const delay = isOpen() ? 0 : 80;
+    showTimer = setTimeout(() => {
+      if (currentTrigger !== trigger || !document.contains(trigger)) return;
+      tip.textContent = label;
+      tip.dataset.placement = (trigger.dataset.tooltipPosition || 'bottom').split('-')[0];
+      tip.style.left = '0px';
+      tip.style.top = '0px';
+      open();
+      requestAnimationFrame(() => place(trigger));
+    }, delay);
+  }
+  function hide() {
+    clearTimeout(showTimer);
+    if (!currentTrigger) return;
+    currentTrigger = null;
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(close, 80);
+  }
+  document.addEventListener('pointerover', (event) => {
+    const trigger = event.target.closest?.('[data-tooltip]');
+    if (trigger) show(trigger);
+    else if (currentTrigger) hide();
+  });
+  document.addEventListener('pointerout', (event) => {
+    const trigger = event.target.closest?.('[data-tooltip]');
+    if (!trigger || trigger !== currentTrigger) return;
+    const related = event.relatedTarget;
+    if (related && trigger.contains(related)) return;
+    hide();
+  });
+  document.addEventListener('focusin', (event) => {
+    const trigger = event.target.closest?.('[data-tooltip]');
+    if (trigger) show(trigger);
+  });
+  document.addEventListener('focusout', (event) => {
+    const trigger = event.target.closest?.('[data-tooltip]');
+    if (trigger && trigger === currentTrigger) hide();
+  });
+  const reposition = () => {
+    if (!currentTrigger) return;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => currentTrigger && place(currentTrigger));
+  };
+  window.addEventListener('scroll', reposition, { capture: true, passive: true });
+  window.addEventListener('resize', reposition);
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') hide(); });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupTooltips, { once: true });
+else setupTooltips();
+
 function readStoredTheme() {
   try {
     const theme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -73,7 +196,9 @@ async function loadSearchAliases() {
   function applyTheme(theme, persist = false) {
     document.documentElement.dataset.theme = theme;
     els.themeToggle.innerHTML = theme === 'night' ? iconSvg('sun1') : iconSvg('moon');
-    els.themeToggle.setAttribute('aria-label', theme === 'night' ? 'Switch to day theme' : 'Switch to night theme');
+    const nextLabel = theme === 'night' ? 'Switch to day theme' : 'Switch to night theme';
+    els.themeToggle.setAttribute('aria-label', nextLabel);
+    els.themeToggle.setAttribute('data-tooltip', nextLabel);
     if (!persist) return;
     try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (_error) {}
   }
@@ -406,7 +531,7 @@ async function loadSearchAliases() {
   function setSelectedStyle(style) {
     const item = state.selected; if (!item?.variants[style]) return; state.selectedStyle = style;
     els.variantTabs.querySelectorAll('.variant-tab').forEach((button) => button.classList.toggle('active', button.dataset.variant === style));
-    const svg = item.variants[style]; els.dialogIconMini.innerHTML = svg; els.dialogPreview.innerHTML = svg; els.quickCopyActions.innerHTML = `<button class="quick-copy-action" type="button" data-copy="download" aria-label="Download SVG" title="Download SVG">${iconSvg('documentDownload')}</button><button class="quick-copy-action" type="button" data-copy="src" aria-label="Copy @iconsax token" title="Copy @iconsax token">${iconSvg('copy')}</button><button class="quick-copy-action" type="button" data-copy="tui" aria-label="Copy tui-svg element" title="Copy tui-svg element">${iconSvg('codeCircle')}</button>`;
+    const svg = item.variants[style]; els.dialogIconMini.innerHTML = svg; els.dialogPreview.innerHTML = svg; els.quickCopyActions.innerHTML = `<button class="quick-copy-action" type="button" data-copy="download" aria-label="Download SVG" data-tooltip="Download SVG" data-tooltip-position="left">${iconSvg('documentDownload')}</button><button class="quick-copy-action" type="button" data-copy="src" aria-label="Copy @iconsax token" data-tooltip="Copy @iconsax token" data-tooltip-position="left">${iconSvg('copy')}</button><button class="quick-copy-action" type="button" data-copy="tui" aria-label="Copy tui-svg element" data-tooltip="Copy &lt;tui-svg&gt; element" data-tooltip-position="left">${iconSvg('codeCircle')}</button>`;
     els.sizePreview.innerHTML = [
       ['xs', '16px'],
       ['s', '20px'],
@@ -433,7 +558,7 @@ async function loadSearchAliases() {
         ['positive-icon-button', 'Positive icon'],
         ['negative-icon-button', 'Negative icon'],
         ['basic-icon-button', 'Basic icon'],
-      ].map(([appearance, label]) => `<button class="tui-preview-icon-button" data-appearance="${appearance}" type="button" aria-label="${label}" title="${label}">${svg}</button>`).join('');
+      ].map(([appearance, label]) => `<button class="tui-preview-icon-button" data-appearance="${appearance}" type="button" aria-label="${label}" data-tooltip="${label}">${svg}</button>`).join('');
     els.chipPreview.innerHTML = [
       ['default', 'Default'],
       ['success', 'Success'],
