@@ -186,9 +186,9 @@ async function loadSearchAliases() {
   }
   const allIconVariants = icons.flatMap((item) => styles.filter((style) => item.variants[style]).map((style) => ({ ...item, style, variantCount: Object.keys(item.variants).length })));
   let searchIndexByKey = new Map();
-  const state = { query: '', style: 'all', sort: 'az', selected: null, selectedStyle: 'outline', filteredIcons: [], virtualRaf: 0, renderedWindowKey: '', renderedPlaceholderKey: '', visibleIconKeys: new Set(), urlTimer: 0, isApplyingUrl: false };
+  const state = { query: '', style: 'all', selected: null, selectedStyle: 'outline', filteredIcons: [], virtualRaf: 0, renderRaf: 0, renderedWindowKey: '', renderedPlaceholderKey: '', visibleIconKeys: new Set(), urlTimer: 0, isApplyingUrl: false };
   const els = {
-    grid: document.getElementById('grid'), empty: document.getElementById('empty'), search: document.getElementById('search'), sort: document.getElementById('sort'), toast: document.getElementById('toast'),
+    grid: document.getElementById('grid'), empty: document.getElementById('empty'), search: document.getElementById('search'), toast: document.getElementById('toast'),
     themeToggle: document.getElementById('themeToggle'), docsButton: document.getElementById('docsButton'), copyInterceptor: document.getElementById('copyInterceptor'), interceptorCode: document.getElementById('interceptorCode'),
     iconDialog: document.getElementById('iconDialog'), docsDialog: document.getElementById('docsDialog'), dialogIconMini: document.getElementById('dialogIconMini'), iconDialogTitle: document.getElementById('iconDialogTitle'), iconDialogSubtitle: document.getElementById('iconDialogSubtitle'),
     variantTabs: document.getElementById('variantTabs'), dialogPreview: document.getElementById('dialogPreview'), quickCopyActions: document.getElementById('quickCopyActions'), sizePreview: document.getElementById('sizePreview'), buttonPreview: document.getElementById('buttonPreview'), chipPreview: document.getElementById('chipPreview')
@@ -322,27 +322,65 @@ async function loadSearchAliases() {
     const style = preferredStyle(item);
     return searchIndexByKey.get(`${style}:${item.name}`) || createSearchParts(item.name, style);
   }
-  function searchScore(item, query) {
+  function precomputeQuery(query) {
+    const queryLower = query.toLowerCase();
     const queryTokens = splitWords(query);
-    if (!queryTokens.length) return 1;
-    const expandedTerms = expandQueryTerms(queryTokens);
     const queryCompact = queryTokens.join('');
-    const parts = searchableParts(item);
-    const tokenSet = new Set(parts.tokens);
+    const expandedTerms = queryTokens.length ? expandQueryTerms(queryTokens) : [];
+    const queryTokenSet = new Set(queryTokens);
+    return { queryLower, queryTokens, queryCompact, expandedTerms, queryTokenSet };
+  }
+  function ensureTokenSet(parts) {
+    if (!parts.tokenSet) parts.tokenSet = new Set(parts.tokens);
+    return parts.tokenSet;
+  }
+  function minLevenshtein(term, tokens) {
+    let best = Infinity;
+    for (let i = 0; i < tokens.length; i += 1) {
+      const d = levenshtein(term, tokens[i]);
+      if (d < best) { best = d; if (best <= 1) break; }
+    }
+    return best;
+  }
+  function scoreItem(parts, q) {
+    if (!q.queryTokens.length) return 1;
+    const tokenSet = ensureTokenSet(parts);
+    const compactHit = parts.compactName.includes(q.queryCompact);
+    // Fast path: bail out items with no textual or alias overlap before running Levenshtein.
+    if (!compactHit) {
+      let anyHit = false;
+      for (let i = 0; i < q.queryTokens.length; i += 1) {
+        const t = q.queryTokens[i];
+        if (tokenSet.has(t) || parts.compactName.includes(t)) { anyHit = true; break; }
+      }
+      if (!anyHit) {
+        for (let i = 0; i < q.expandedTerms.length; i += 1) {
+          const term = q.expandedTerms[i];
+          if (tokenSet.has(term) || parts.compactName.includes(term)) { anyHit = true; break; }
+        }
+        if (!anyHit) return 0;
+      }
+    }
     let score = 0;
-    if (parts.exactName === query.toLowerCase()) score += 120;
-    if (parts.compactName === queryCompact) score += 100;
-    if (parts.exactName.includes(query.toLowerCase()) || parts.compactName.includes(queryCompact)) score += 80;
-    if (queryTokens.every((token) => tokenSet.has(token) || parts.compactName.includes(token))) score += 50;
-    expandedTerms.forEach((term) => {
-      if (tokenSet.has(term)) score += queryTokens.includes(term) ? 18 : 10;
-      else if (parts.compactName.includes(term)) score += queryTokens.includes(term) ? 12 : 7;
-      else {
-        const bestDistance = Math.min(...parts.tokens.map((token) => levenshtein(term, token)));
-        if (bestDistance <= 1 && term.length >= 4) score += 8;
+    if (parts.exactName === q.queryLower) score += 120;
+    if (parts.compactName === q.queryCompact) score += 100;
+    if (parts.exactName.includes(q.queryLower) || compactHit) score += 80;
+    let allTokensFound = true;
+    for (let i = 0; i < q.queryTokens.length; i += 1) {
+      const t = q.queryTokens[i];
+      if (!tokenSet.has(t) && !parts.compactName.includes(t)) { allTokensFound = false; break; }
+    }
+    if (allTokensFound) score += 50;
+    for (let i = 0; i < q.expandedTerms.length; i += 1) {
+      const term = q.expandedTerms[i];
+      if (tokenSet.has(term)) score += q.queryTokenSet.has(term) ? 18 : 10;
+      else if (parts.compactName.includes(term)) score += q.queryTokenSet.has(term) ? 12 : 7;
+      else if (term.length >= 4) {
+        const bestDistance = minLevenshtein(term, parts.tokens);
+        if (bestDistance <= 1) score += 8;
         else if (bestDistance <= 2 && term.length >= 6) score += 4;
       }
-    });
+    }
     return score;
   }
   let toastTimer;
@@ -382,16 +420,13 @@ async function loadSearchAliases() {
     const hashParams = stateParamsFromHash();
     const params = usesPreviewWrapper() && hashParams.size ? hashParams : new URLSearchParams(window.location.search);
     const urlStyle = params.get('type') || params.get('style') || 'all';
-    const urlSort = params.get('sort') || 'az';
     return {
       query: params.get('q') || '',
       style: ['all', ...styles].includes(urlStyle) ? urlStyle : 'all',
-      sort: ['az', 'za', 'variant-count'].includes(urlSort) ? urlSort : 'az',
     };
   }
   function writeControlsFromState() {
     els.search.value = state.query;
-    els.sort.value = state.sort;
     document.querySelectorAll('.seg').forEach((seg) => seg.setAttribute('aria-pressed', String(seg.dataset.style === state.style)));
   }
   function updateDocumentTitle() {
@@ -407,7 +442,6 @@ async function loadSearchAliases() {
       const params = new URLSearchParams();
       params.set('type', state.style);
       if (state.query.trim()) params.set('q', state.query.trim());
-      if (state.sort !== 'az') params.set('sort', state.sort);
       let nextUrl;
       if (usesPreviewWrapper()) {
         nextUrl = `${previewWrapperBaseUrl()}#${params.toString()}`;
@@ -417,7 +451,7 @@ async function loadSearchAliases() {
         nextUrl = url.href;
       }
       if (nextUrl === window.location.href) return;
-      history[replace ? 'replaceState' : 'pushState']({ query: state.query, style: state.style, sort: state.sort }, '', nextUrl);
+      history[replace ? 'replaceState' : 'pushState']({ query: state.query, style: state.style }, '', nextUrl);
     } catch (error) {
       console.warn('Unable to update glossary URL state', error);
     }
@@ -432,7 +466,6 @@ async function loadSearchAliases() {
     state.isApplyingUrl = true;
     state.query = next.query;
     state.style = next.style;
-    state.sort = next.sort;
     writeControlsFromState();
     render();
     state.isApplyingUrl = false;
@@ -449,22 +482,25 @@ async function loadSearchAliases() {
   }
   function filtered() {
     const q = state.query.trim();
-    const source = state.style === 'all' ? allIconVariants : icons.filter((item) => item.variants[state.style]).map((item) => ({ ...item, style: state.style, variantCount: Object.keys(item.variants).length }));
-    const sortItems = (a, b) => {
-      const nameSort = state.sort === 'za' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
-      if (state.sort === 'variant-count') return b.variantCount - a.variantCount || a.name.localeCompare(b.name) || a.style.localeCompare(b.style);
-      return nameSort || a.style.localeCompare(b.style);
-    };
+    const source = state.style === 'all'
+      ? allIconVariants
+      : icons.filter((item) => item.variants[state.style]).map((item) => ({ ...item, style: state.style, variantCount: Object.keys(item.variants).length }));
+    const byNameThenStyle = (a, b) => a.name.localeCompare(b.name) || a.style.localeCompare(b.style);
     if (!q) {
-      const list = [...source];
-      list.sort(sortItems);
+      const list = source.slice();
+      list.sort(byNameThenStyle);
       return list;
     }
-    const list = source
-      .map((item) => ({ item, score: searchScore(item, q) }))
-      .filter((entry) => entry.score > 0);
-    list.sort((a, b) => b.score - a.score || sortItems(a.item, b.item));
-    return list.map((entry) => entry.item);
+    const queryData = precomputeQuery(q);
+    const scored = [];
+    for (let i = 0; i < source.length; i += 1) {
+      const item = source[i];
+      const parts = searchableParts(item);
+      const score = scoreItem(parts, queryData);
+      if (score > 0) scored.push({ item, score });
+    }
+    scored.sort((a, b) => b.score - a.score || byNameThenStyle(a.item, b.item));
+    return scored.map((entry) => entry.item);
   }
   function card(item, renderIndex = 0) {
     const style = preferredStyle(item); const svg = item.variants[style] || '';
@@ -528,6 +564,10 @@ async function loadSearchAliases() {
     }
   }
   function render() { state.filteredIcons = filtered(); state.renderedWindowKey = ''; state.renderedPlaceholderKey = ''; state.visibleIconKeys = new Set(); renderVirtualGrid(); updateDocumentTitle(); }
+  function scheduleRender() {
+    if (state.renderRaf) return;
+    state.renderRaf = requestAnimationFrame(() => { state.renderRaf = 0; render(); });
+  }
   function setSelectedStyle(style) {
     const item = state.selected; if (!item?.variants[style]) return; state.selectedStyle = style;
     els.variantTabs.querySelectorAll('.variant-tab').forEach((button) => button.classList.toggle('active', button.dataset.variant === style));
@@ -591,8 +631,7 @@ async function loadSearchAliases() {
     render();
     scheduleUrlUpdate();
   }));
-  els.search.addEventListener('input', () => { state.query = els.search.value; render(); scheduleUrlUpdate(); });
-  els.sort.addEventListener('change', () => { state.sort = els.sort.value; render(); scheduleUrlUpdate(); });
+  els.search.addEventListener('input', () => { state.query = els.search.value; scheduleRender(); scheduleUrlUpdate(); });
   window.addEventListener('popstate', applyUrlState);
   window.addEventListener('scroll', scheduleVirtualRender, { passive: true });
   window.addEventListener('resize', scheduleVirtualRender);
