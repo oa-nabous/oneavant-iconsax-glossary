@@ -1,5 +1,6 @@
 // Generated Iconsax glossary behavior.
 // Icon data lives in ./iconsax-glossary.icons.json.
+// Search aliases live in ./iconsax-glossary.aliases.json.
 const THEME_STORAGE_KEY = 'iconsax-glossary-theme';
 
 function readStoredTheme() {
@@ -21,12 +22,26 @@ async function loadIconData() {
   return response.json();
 }
 
+async function loadSearchAliases() {
+  try {
+    const response = await fetch('./iconsax-glossary.aliases.json');
+    if (!response.ok) throw new Error(`Failed to load search aliases: ${response.status}`);
+    return response.json();
+  } catch (error) {
+    console.warn('Search aliases unavailable; continuing without aliases', error);
+    return {};
+  }
+}
+
 (async () => {
-  const icons = await loadIconData();
+  const [icons, searchAliases] = await Promise.all([loadIconData(), loadSearchAliases()]);
   const loadingOverlay = document.getElementById('loadingOverlay');
   const page = document.querySelector('.page');
   const styles = ['bold', 'bulk', 'outline'];
   const iconByName = new Map(icons.map((item) => [item.name, item]));
+  const SEARCH_INDEX_DB = 'iconsax-glossary-search';
+  const SEARCH_INDEX_STORE = 'indexes';
+  const SEARCH_INDEX_KEY = 'iconsax-search-v1';
   const iconSvg = (name, style = 'outline') => {
     const variants = iconByName.get(name)?.variants;
     return variants?.[style] || variants?.outline || variants?.bold || variants?.bulk || '';
@@ -47,6 +62,7 @@ async function loadIconData() {
     });
   }
   const allIconVariants = icons.flatMap((item) => styles.filter((style) => item.variants[style]).map((style) => ({ ...item, style, variantCount: Object.keys(item.variants).length })));
+  let searchIndexByKey = new Map();
   const state = { query: '', style: 'all', sort: 'az', selected: null, selectedStyle: 'outline', filteredIcons: [], virtualRaf: 0, renderedWindowKey: '', renderedPlaceholderKey: '', visibleIconKeys: new Set(), urlTimer: 0, isApplyingUrl: false };
   const els = {
     grid: document.getElementById('grid'), empty: document.getElementById('empty'), search: document.getElementById('search'), sort: document.getElementById('sort'), toast: document.getElementById('toast'),
@@ -68,6 +84,142 @@ async function loadIconData() {
   const srcFor = (name, style) => `@iconsax/${style}/${name}`;
   const snippetFor = (name, style) => `<tui-svg src="${srcFor(name, style)}"></tui-svg>`;
   const preferredStyle = (item) => item.style || (state.style !== 'all' && item.variants[state.style] ? state.style : (item.variants.outline ? 'outline' : item.variants.bold ? 'bold' : Object.keys(item.variants)[0]));
+  const splitWords = (value) => String(value)
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  const tokenNgrams = (tokens) => {
+    const grams = [];
+    for (let size = 2; size <= 3; size += 1) {
+      for (let index = 0; index <= tokens.length - size; index += 1) grams.push(tokens.slice(index, index + size).join(''));
+    }
+    return grams;
+  };
+  async function sha256(value) {
+    if (!window.crypto?.subtle || !window.TextEncoder) return `${value.length}:${value.slice(0, 120)}:${value.slice(-120)}`;
+    const bytes = new TextEncoder().encode(value);
+    const hash = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+  function openSearchIndexDb() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) return reject(new Error('IndexedDB is unavailable'));
+      const request = indexedDB.open(SEARCH_INDEX_DB, 1);
+      request.onupgradeneeded = () => request.result.createObjectStore(SEARCH_INDEX_STORE);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function readSearchIndexCache(db) {
+    return new Promise((resolve, reject) => {
+      const request = db.transaction(SEARCH_INDEX_STORE, 'readonly').objectStore(SEARCH_INDEX_STORE).get(SEARCH_INDEX_KEY);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function writeSearchIndexCache(db, value) {
+    return new Promise((resolve, reject) => {
+      const request = db.transaction(SEARCH_INDEX_STORE, 'readwrite').objectStore(SEARCH_INDEX_STORE).put(value, SEARCH_INDEX_KEY);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+  function createSearchParts(name, style) {
+    const nameTokens = splitWords(name);
+    return {
+      style,
+      exactName: name.toLowerCase(),
+      compactName: nameTokens.join(''),
+      tokens: [...new Set([style, ...nameTokens, ...tokenNgrams(nameTokens)])],
+    };
+  }
+  function buildSearchIndexRows() {
+    return allIconVariants.map((item) => [`${item.style}:${item.name}`, createSearchParts(item.name, item.style)]);
+  }
+  async function prepareSearchIndex() {
+    const signaturePayload = JSON.stringify(icons.map((item) => ({
+      name: item.name,
+      variants: Object.fromEntries(styles.filter((style) => item.variants[style]).map((style) => [style, item.variants[style]])),
+    })));
+    const signature = await sha256(signaturePayload);
+    try {
+      const db = await openSearchIndexDb();
+      const cached = await readSearchIndexCache(db);
+      if (cached?.signature === signature && Array.isArray(cached.rows)) {
+        searchIndexByKey = new Map(cached.rows);
+        db.close();
+        return;
+      }
+      const rows = buildSearchIndexRows();
+      searchIndexByKey = new Map(rows);
+      await writeSearchIndexCache(db, { signature, rows, updatedAt: Date.now() });
+      db.close();
+    } catch (error) {
+      console.warn('IndexedDB search cache unavailable; using in-memory search index', error);
+      searchIndexByKey = new Map(buildSearchIndexRows());
+    }
+  }
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    const row = Array.from({ length: b.length + 1 }, (_, index) => index);
+    for (let i = 1; i <= a.length; i += 1) {
+      let previous = row[0];
+      row[0] = i;
+      for (let j = 1; j <= b.length; j += 1) {
+        const current = row[j];
+        row[j] = Math.min(row[j] + 1, row[j - 1] + 1, previous + (a[i - 1] === b[j - 1] ? 0 : 1));
+        previous = current;
+      }
+    }
+    return row[b.length];
+  }
+  function expandQueryTerms(tokens) {
+    const expanded = new Set(tokens);
+    tokens.forEach((token) => {
+      Object.entries(searchAliases).forEach(([alias, terms]) => {
+        const isExact = alias === token;
+        const isPrefix = !isExact && token.length >= 3 && alias.length > token.length && alias.startsWith(token);
+        const isTypo = !isExact && !isPrefix && token.length >= 5 && Math.abs(alias.length - token.length) <= 1 && levenshtein(token, alias) <= 1;
+        if (!isExact && !isPrefix && !isTypo) return;
+        expanded.add(alias);
+        terms.forEach((term) => expanded.add(term));
+      });
+    });
+    return [...expanded];
+  }
+  function searchableParts(item) {
+    const style = preferredStyle(item);
+    return searchIndexByKey.get(`${style}:${item.name}`) || createSearchParts(item.name, style);
+  }
+  function searchScore(item, query) {
+    const queryTokens = splitWords(query);
+    if (!queryTokens.length) return 1;
+    const expandedTerms = expandQueryTerms(queryTokens);
+    const queryCompact = queryTokens.join('');
+    const parts = searchableParts(item);
+    const tokenSet = new Set(parts.tokens);
+    let score = 0;
+    if (parts.exactName === query.toLowerCase()) score += 120;
+    if (parts.compactName === queryCompact) score += 100;
+    if (parts.exactName.includes(query.toLowerCase()) || parts.compactName.includes(queryCompact)) score += 80;
+    if (queryTokens.every((token) => tokenSet.has(token) || parts.compactName.includes(token))) score += 50;
+    expandedTerms.forEach((term) => {
+      if (tokenSet.has(term)) score += queryTokens.includes(term) ? 18 : 10;
+      else if (parts.compactName.includes(term)) score += queryTokens.includes(term) ? 12 : 7;
+      else {
+        const bestDistance = Math.min(...parts.tokens.map((token) => levenshtein(term, token)));
+        if (bestDistance <= 1 && term.length >= 4) score += 8;
+        else if (bestDistance <= 2 && term.length >= 6) score += 4;
+      }
+    });
+    return score;
+  }
   let toastTimer;
   function toast(message) {
     clearTimeout(toastTimer);
@@ -171,18 +323,23 @@ async function loadIconData() {
     toast('SVG downloaded');
   }
   function filtered() {
-    const q = state.query.trim().toLowerCase();
+    const q = state.query.trim();
     const source = state.style === 'all' ? allIconVariants : icons.filter((item) => item.variants[state.style]).map((item) => ({ ...item, style: state.style, variantCount: Object.keys(item.variants).length }));
-    const list = source.filter((item) => {
-      if (!q) return true;
-      return item.name.toLowerCase().includes(q) || `${item.style}/${item.name}`.toLowerCase().includes(q);
-    });
-    list.sort((a, b) => {
+    const sortItems = (a, b) => {
       const nameSort = state.sort === 'za' ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name);
       if (state.sort === 'variant-count') return b.variantCount - a.variantCount || a.name.localeCompare(b.name) || a.style.localeCompare(b.style);
       return nameSort || a.style.localeCompare(b.style);
-    });
-    return list;
+    };
+    if (!q) {
+      const list = [...source];
+      list.sort(sortItems);
+      return list;
+    }
+    const list = source
+      .map((item) => ({ item, score: searchScore(item, q) }))
+      .filter((entry) => entry.score > 0);
+    list.sort((a, b) => b.score - a.score || sortItems(a.item, b.item));
+    return list.map((entry) => entry.item);
   }
   function card(item, renderIndex = 0) {
     const style = preferredStyle(item); const svg = item.variants[style] || '';
@@ -319,6 +476,7 @@ async function loadIconData() {
   window.matchMedia?.('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!readStoredTheme()) applyTheme(getSystemTheme()); });
   els.docsButton.addEventListener('click', () => els.docsDialog.showModal());
   els.copyInterceptor.addEventListener('click', () => copyText(els.interceptorCode.textContent, 'Interceptor'));
+  await prepareSearchIndex();
   applyUrlState();
   updateUrl(true);
   page?.setAttribute('aria-busy', 'false');
