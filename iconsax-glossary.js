@@ -406,7 +406,7 @@ async function loadSearchAliases() {
   function setSelectedStyle(style) {
     const item = state.selected; if (!item?.variants[style]) return; state.selectedStyle = style;
     els.variantTabs.querySelectorAll('.variant-tab').forEach((button) => button.classList.toggle('active', button.dataset.variant === style));
-    const svg = item.variants[style]; els.dialogIconMini.innerHTML = svg; els.dialogPreview.innerHTML = svg; els.quickCopyActions.innerHTML = `<button class="quick-copy-action" type="button" data-copy="download" aria-label="Download SVG" title="Download SVG">${iconSvg('documentDownload')}</button><button class="quick-copy-action" type="button" data-copy="src" aria-label="Copy @iconsax token" title="Copy @iconsax token">${iconSvg('copy')}</button><button class="quick-copy-action" type="button" data-copy="tui" aria-label="Copy tui-svg element" title="Copy tui-svg element">${iconSvg('code')}</button>`;
+    const svg = item.variants[style]; els.dialogIconMini.innerHTML = svg; els.dialogPreview.innerHTML = svg; els.quickCopyActions.innerHTML = `<button class="quick-copy-action" type="button" data-copy="download" aria-label="Download SVG" title="Download SVG">${iconSvg('documentDownload')}</button><button class="quick-copy-action" type="button" data-copy="src" aria-label="Copy @iconsax token" title="Copy @iconsax token">${iconSvg('copy')}</button><button class="quick-copy-action" type="button" data-copy="tui" aria-label="Copy tui-svg element" title="Copy tui-svg element">${iconSvg('codeCircle')}</button>`;
     els.sizePreview.innerHTML = [
       ['xs', '16px'],
       ['s', '20px'],
