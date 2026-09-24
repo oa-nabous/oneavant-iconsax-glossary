@@ -37,7 +37,6 @@ function setupTooltips() {
     const th = tip.offsetHeight;
     const preferred = trigger.dataset.tooltipPosition || 'bottom';
     const baseSide = preferred.startsWith('bottom') ? 'bottom' : preferred.startsWith('top') ? 'top' : preferred === 'left' ? 'left' : preferred === 'right' ? 'right' : 'bottom';
-    // Flip on the main axis only when the preferred side has no room and the opposite does.
     let side = baseSide;
     const fitsBottom = tr.bottom + MARGIN + th <= vh - MARGIN;
     const fitsTop = tr.top - MARGIN - th >= MARGIN;
@@ -47,7 +46,7 @@ function setupTooltips() {
     else if (side === 'top' && !fitsTop && fitsBottom) side = 'bottom';
     else if (side === 'right' && !fitsRight && fitsLeft) side = 'left';
     else if (side === 'left' && !fitsLeft && fitsRight) side = 'right';
-    // Compute position based on chosen side + optional alignment, then shift on the cross axis.
+
     let x;
     let y;
     if (side === 'top' || side === 'bottom') {
@@ -170,8 +169,8 @@ async function loadSearchAliases() {
     return variants?.[style] || variants?.outline || variants?.bold || variants?.bulk || '';
   };
   function hydrateIconsaxImages(root = document) {
-    root.querySelectorAll('img[src^="@iconsax/"]').forEach((img) => {
-      const match = img.getAttribute('src')?.match(/^@iconsax\/([^/]+)\/(.+)$/);
+    root.querySelectorAll('img[src^="@iconsax."]').forEach((img) => {
+      const match = img.getAttribute('src')?.match(/^@iconsax\.([^.]+)\.(.+)$/);
       if (!match) return;
       const svg = iconSvg(match[2], match[1]);
       if (!svg) return;
@@ -346,7 +345,6 @@ async function loadSearchAliases() {
     if (!q.queryTokens.length) return 1;
     const tokenSet = ensureTokenSet(parts);
     const compactHit = parts.compactName.includes(q.queryCompact);
-    // Fast path: bail out items with no textual or alias overlap before running Levenshtein.
     if (!compactHit) {
       let anyHit = false;
       for (let i = 0; i < q.queryTokens.length; i += 1) {
