@@ -386,25 +386,25 @@
       <section class="stats">
         <div class="stat card">
           <span class="stat-icon"
-            ><img src="@iconsax/outline/grid9" alt="" aria-hidden="true"
+            ><img src="@iconsax.outline.grid9" alt="" aria-hidden="true"
           /></span>
           <div><span>Unique names</span><strong>904</strong></div>
         </div>
         <div class="stat card">
           <span class="stat-icon"
-            ><img src="@iconsax/bold/check" alt="" aria-hidden="true"
+            ><img src="@iconsax.bold.check" alt="" aria-hidden="true"
           /></span>
           <div><span>Bold</span><strong>896</strong></div>
         </div>
         <div class="stat card">
           <span class="stat-icon"
-            ><img src="@iconsax/bulk/check" alt="" aria-hidden="true"
+            ><img src="@iconsax.bulk.check" alt="" aria-hidden="true"
           /></span>
           <div><span>Bulk</span><strong>895</strong></div>
         </div>
         <div class="stat card">
           <span class="stat-icon"
-            ><img src="@iconsax/outline/check" alt="" aria-hidden="true"
+            ><img src="@iconsax.outline.check" alt="" aria-hidden="true"
           /></span>
           <div><span>Outline</span><strong>896</strong></div>
         </div>
@@ -651,7 +651,7 @@
             <h2 id="docsDialogTitle">Developer setup</h2>
             <p>
               Apps must register the Iconsax SVG interceptor before using
-              <code>@iconsax/...</code> tokens.
+              <code>@iconsax.style.name</code> tokens.
             </p>
           </div>
         </div>
@@ -689,9 +689,9 @@
             interceptor in the app module or root providers.
           </li>
           <li>
-            Use paths like <code>@iconsax/outline/box</code>,
-            <code>@iconsax/bold/calendar</code>, or
-            <code>@iconsax/bulk/addCircle</code>.
+            Use tokens like <code>@iconsax.outline.box</code>,
+            <code>@iconsax.bold.calendar</code>, or
+            <code>@iconsax.bulk.addCircle</code>.
           </li>
           <li>
             The interceptor maps those tokens to the self-hosted assets under
@@ -699,11 +699,14 @@
           </li>
         </ul>
         <div class="code-block">
-          <pre><code id="interceptorCode">tuiSvgInterceptor((src: TuiSafeHtml) =>
-  String(src).startsWith('@iconsax/')
-    ? `assets/icons/iconsax/${String(src).replace('@iconsax/', '')}.svg`
-    : src
-)</code></pre>
+          <pre><code id="interceptorCode">tuiSvgInterceptor((src: TuiSafeHtml) => {
+  const value = String(src);
+  const match = value.match(/^@iconsax\.([^.]+)\.(.+)$/);
+
+  return match
+    ? `assets/icons/iconsax/${match[1]}/${match[2]}.svg`
+    : src;
+})</code></pre>
           <button
             class="code-copy"
             type="button"
@@ -712,7 +715,7 @@
             data-tooltip="Copy interceptor"
             data-tooltip-position="left"
           >
-            <img src="@iconsax/bold/copy" />
+            <img src="@iconsax.bold.copy" />
           </button>
         </div>
       </div>
