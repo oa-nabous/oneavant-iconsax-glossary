@@ -206,7 +206,7 @@ async function loadSearchAliases() {
   applyTheme(readStoredTheme() || document.documentElement.dataset.theme || getSystemTheme());
 
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
-  const srcFor = (name, style) => `@iconsax/${style}/${name}`;
+  const srcFor = (name, style) => `@iconsax.${style}.${name}`;
   const snippetFor = (name, style) => `<tui-svg src="${srcFor(name, style)}"></tui-svg>`;
   const preferredStyle = (item) => item.style || (state.style !== 'all' && item.variants[state.style] ? state.style : (item.variants.outline ? 'outline' : item.variants.bold ? 'bold' : Object.keys(item.variants)[0]));
   const splitWords = (value) => String(value)
